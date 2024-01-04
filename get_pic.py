@@ -15,27 +15,22 @@ import os
 
 
 class GetPic:
-    def __init__(self, filename, password=''):
+    def __init__(self, filename):
         """
         initialization
         :param filename: PDF file path
         :param password: password
         """
-        with open(filename, 'rb') as file:
-            # create a document analyzer
-            self.parser = PDFParser(file)
-            # create documentation
-            self.doc = PDFDocument(self.parser)
-            print(self.parser)
-        #     # connect documents with document analyzer
-        #     self.parser.set_document(self.doc)
-        #     self.doc.set_parser(self.parser)
-        # # initialization, get the initial password, or an empty string if none
-        # self.doc.initialize(password)
-        # check whether the document provides txt conversion, ignore it if not, throw an exception
+        self.doc_pdfs = []
+        # create a document analyzer
+        fp = open(filename, 'rb')
+        self.parser = PDFParser(fp)
+        # create documentation
+        self.doc = PDFDocument(self.parser)
         if not self.doc.is_extractable:
             raise PDFTextExtractionNotAllowed
         else:
+
             # create a PDF explorer to manage shared resources
             self.resource_manager = PDFResourceManager()
             # create a PDF device object
@@ -44,14 +39,12 @@ class GetPic:
             # create a PDF interpreter object
             self.interpreter = PDFPageInterpreter(self.resource_manager, self.device)
             # create a list of PDF page objects
-            # for page in PDFPage.create_pages(self.doc):
-            # self.doc_pdfs = list()
-            for i, page in PDFPage.get_pages(self.doc):
-                print(i,page)
-            self.doc_pdfs = list(PDFPage.get_pages(self.doc))
-        # open the PDF file and generate an iterable object containing image doc objects
-        self.doc_pics = fitz.open(filename)
-        self.pic_info = {}
+            for page in PDFPage.create_pages(self.doc):
+                self.doc_pdfs.append(page)
+        # self.doc_pdfs = list(PDFPage.get_pages(self.doc))
+    # open the PDF file and generate an iterable object containing image doc objects
+            self.doc_pics = fitz.open(filename)
+            self.pic_info = {}
 
     def to_pic(self, doc, zoom, pg, pic_path):
         """
@@ -63,12 +56,12 @@ class GetPic:
         :return: pic path
         """
         rotate = int(0)
-        trans = fitz.Matrix(zoom, zoom).preRotate(rotate)
-        pm = doc.getPixmap(matrix=trans, alpha=False)
+        trans = fitz.Matrix(zoom, zoom).prerotate(rotate)
+        pm = doc.get_pixmap(matrix=trans, alpha=False)
         path = os.path.join(pic_path, str(pg)) + '.png'
-        pm.writePNG(path)
+        pm.save(path)
         return path
-    
+
     def get_level(self, zip_loc_list):
         """
         record the relative horizontal position of the chart on each page of the PDF
@@ -129,7 +122,7 @@ class GetPic:
                     level_dict[level_count_str].append(j)
         return level_dict
 
-    def get_pic_loc(self, doc, pgn):
+    def get_pic_loc(self,filename, doc, pgn):
         """
         get the position of an image in a single page
         :param doc: doc object for PDF
@@ -219,7 +212,7 @@ class GetPic:
         except Exception as e:
             print(e)
 
-    def get_pic_info(self, pic_path, page_count):
+    def get_pic_info(self,filename, pic_path, page_count):
         """
         Convert PDF to pictures by page and save related information in dictionary self.pic_info by page
         The key is the page number of the PDF, and the value is the corresponding relevant information
@@ -235,7 +228,7 @@ class GetPic:
             doc_pic = self.doc_pics[pgn]
             # convert the current page to PNG, the return value is the pic path
             path = self.to_pic(doc_pic, 2, pgn, pic_path)
-            pgn_info = self.get_pic_loc(doc_pdf, pgn)
+            pgn_info = self.get_pic_loc(filename,doc_pdf, pgn)
             self.pic_info[pgn] = {
                 'path': path,
                 'loc_top': pgn_info[0], 
@@ -331,16 +324,16 @@ class GetPic:
 
 
 if __name__ == '__main__':
-    pdf_path = 'SaaS龙头深耕微信生态，双轮驱动增长.pdf'
-    pic_path = 'SaaS龙头深耕微信生态，双轮驱动增长/PNG'
-    cropped_pic_path = 'SaaS龙头深耕微信生态，双轮驱动增长/CROPPED_PIC'
+    pdf_path = 'D:\Code\get_pdf_pic\SaaS龙头深耕微信生态，双轮驱动增长.pdf'
+    pic_path = 'D:\Code\get_pdf_pic\SaaS龙头深耕微信生态，双轮驱动增长\PNG'
+    cropped_pic_path = 'D:\Code\get_pdf_pic\SaaS龙头深耕微信生态，双轮驱动增长\CROPPED_PIC'
 
     gp = GetPic(pdf_path)
     if not os.path.exists(pic_path):
         os.makedirs(pic_path)
     if not os.path.exists(cropped_pic_path):
         os.makedirs(cropped_pic_path)
-    page_count = gp.doc_pics.pageCount
-    gp.get_pic_info(pic_path, page_count)
+    page_count = gp.doc_pics.page_count
+    gp.get_pic_info(pdf_path,pic_path, page_count)
     gp.generate_result(cropped_pic_path)
     gp.blend_pic(cropped_pic_path)
